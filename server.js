@@ -4,12 +4,12 @@ var url = require("url");
 var external_host = 'wallet1.xapo.com';
 
 function configure_cors(response) {
-  cors_response = {
+  cors_headers = {
     "Access-Control-Allow-Origin" : "*",
     "Access-Control-Allow-Methods" : "GET, POST, PUT, DELETE, OPTIONS, PATCH",
     "Access-Control-Allow-Headers" : "x-requested-with, Authorization, Content-Type, accept"
   };
-  response.writeHead(200, cors_response);
+  response.writeHead(200, cors_headers);
 }
 
 function option_handler(response){
@@ -19,14 +19,13 @@ function option_handler(response){
 }
 
 function handle(client_response) {
+  configure_cors(client_response);
   return function(external_response) {
     console.log('external_response');
     external_response.on('data', function(external_response_content) {
-      configure_cors(client_response);
-
-      //console.log(external_response_content);
       client_response.write(external_response_content);
-
+    });
+    external_response.on('end', function(external_response_content) {
       client_response.end();
     });
   };
