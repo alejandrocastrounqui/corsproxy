@@ -1,0 +1,5 @@
+Nodejs module to wrap HTTP flow between server without CORS configuration and external web applications
+
+future goals:
+  configuration file
+  use client headers
