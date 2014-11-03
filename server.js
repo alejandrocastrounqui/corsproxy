@@ -1,7 +1,9 @@
 var http = require("http");
 var url = require("url");
 
-var external_host = 'wallet1.xapo.com';
+var configuration = {
+  host: 'wallet1.xapo.com'
+};
 
 function configure_cors(response) {
   cors_headers = {
@@ -12,22 +14,24 @@ function configure_cors(response) {
   response.writeHead(200, cors_headers);
 }
 
-function option_handler(response){
-  console.log("preflaf response");
+function handle_options(response){
   configure_cors(response);
   response.end();
 }
 
-function handle(client_response) {
-  configure_cors(client_response);
+function stream(input, output){
+  input.on('data', function(chunk) {
+    output.write(chunk);
+  });
+  input.on('end', function() {
+    output.end();
+  });
+}
+
+function handle_external(client) {
+  configure_cors(client.response);
   return function(external_response) {
-    console.log('external_response');
-    external_response.on('data', function(external_response_content) {
-      client_response.write(external_response_content);
-    });
-    external_response.on('end', function(external_response_content) {
-      client_response.end();
-    });
+    return stream(external_response, client.response);
   };
 }
 
@@ -35,23 +39,38 @@ function logerror(error) {
   console.log("Got error: " + error.message);
 }
 
-http.createServer(function(request, response) {
-  if (request.method == 'OPTIONS') {
-    option_handler(response);
+function client_listener(client) {
+  if (client.request.method == 'OPTIONS') {
+    handle_options(client.response);
   }
   else {
-    //console.log("manejando" + request.url);
     options = {
-      //method: 'GET',
-      host: external_host,
-      path: request.url,
+      method: client.request.method,
+      host:   configuration.host,
+      path:   client.request.url,
+      //port:   '80',
       headers: {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
       }
     };
     
-    query = http.get(options, handle(response));
+    query = http.request(options, handle_external(client));
     query.on('error', logerror);
+    query.end();
   }
+}
 
-}).listen(9002);
+function wrapp_client(handler){
+  return function(request, response){
+    var client = {
+      request: request,
+      response: response
+    };
+    handler(client);
+  };
+}
+
+http.createServer(wrapp_client(client_listener)).listen(9002);
+
+
+
